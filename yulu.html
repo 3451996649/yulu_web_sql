@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>*name*精选集</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+        }
+        
+        body {
+            background-color: #f8f9fa;
+            color: #333;
+            line-height: 1.6;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #eaeaea;
+        }
+        
+        h1 {
+            color: #5b8c85;
+            font-weight: 300;
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+        
+        .subtitle {
+            color: #88a096;
+            font-size: 1.1rem;
+        }
+        
+        .quotes-container {
+            margin-bottom: 40px;
+        }
+        
+        .quote-card {
+            background-color: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+            border-left: 4px solid #5b8c85;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        
+        .quote-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+        }
+        
+        .quote-text {
+            font-size: 1.1rem;
+            color: #444;
+            margin-bottom: 10px;
+        }
+        
+        .quote-meta {
+            font-size: 0.85rem;
+            color: #888;
+            text-align: right;
+        }
+        
+        .upload-section {
+            background-color: white;
+            border-radius: 8px;
+            padding: 25px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+        }
+        
+        h2 {
+            color: #5b8c85;
+            margin-bottom: 20px;
+            font-weight: 400;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #666;
+        }
+        
+        textarea {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 1rem;
+            resize: vertical;
+            min-height: 100px;
+            transition: border-color 0.3s;
+        }
+        
+        textarea:focus {
+            border-color: #5b8c85;
+            outline: none;
+        }
+        
+        .btn {
+            background-color: #5b8c85;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: background-color 0.3s;
+        }
+        
+        .btn:hover {
+            background-color: #4a726b;
+        }
+        
+        .btn:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        
+        .message {
+            margin-top: 15px;
+            padding: 10px;
+            border-radius: 4px;
+            display: none;
+        }
+        
+        .success {
+            background-color: #e8f5e9;
+            color: #2e7d32;
+            border: 1px solid #c8e6c9;
+        }
+        
+        .error {
+            background-color: #ffebee;
+            color: #c62828;
+            border: 1px solid #ffcdd2;
+        }
+        
+        footer {
+            text-align: center;
+            margin-top: 40px;
+            color: #88a096;
+            font-size: 0.9rem;
+        }
+        
+        .loading {
+            text-align: center;
+            color: #88a096;
+            padding: 20px;
+        }
+        
+        .server-status {
+            display: inline-block;
+            margin-left: 10px;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+        }
+        
+        .online {
+            background-color: #e8f5e9;
+            color: #2e7d32;
+        }
+        
+        .offline {
+            background-color: #ffebee;
+            color: #c62828;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>*name*语录</h1>
+            <p class="subtitle">典</p>
+            <div id="serverStatus" class="server-status offline">服务器未连接</div>
+        </header>
+        
+        <main>
+            <section class="quotes-container" id="quotesContainer">
+                <div class="loading" id="loadingIndicator">正在加载语录...</div>
+                <!-- 语录将在这里动态生成 -->
+            </section>
+            
+            <section class="upload-section">
+                <h2>上传一条典故</h2>
+                <form id="quoteForm">
+                    <div class="form-group">
+                        <label for="quoteText">语录内容</label>
+                        <textarea id="quoteText" placeholder="请输入你想上传的典故..." required></textarea>
+                    </div>
+                    <button type="submit" class="btn" id="submitBtn">上传典故</button>
+                    <div id="message" class="message"></div>
+                </form>
+            </section>
+        </main>
+        
+    </div>
+
+    <script>
+        // 初始语录数据
+        const initialQuotes = [
+            { text: "“更多语录加载ing...”" },
+        ];
+
+        // 服务器配置
+        const SERVER_URL = 'http://127.0.0.1:6673';
+        
+        async function checkServerStatus() {
+            try {
+                const response = await fetch(`${SERVER_URL}/quotes?type=get&id=czx`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                });
+                
+                if (response.ok) {
+                    document.getElementById('serverStatus').className = 'server-status online';
+                    document.getElementById('serverStatus').textContent = '服务器已连接';
+                    return true;
+                } else {
+                    throw new Error('服务器响应异常');
+                }
+            } catch (error) {
+                console.error('服务器连接失败:', error);
+                document.getElementById('serverStatus').className = 'server-status offline';
+                document.getElementById('serverStatus').textContent = '服务器未连接';
+                return false;
+            }
+        }
+
+        // 从服务器获取语录的函数
+        async function fetchQuotesFromServer() {
+            try {
+                const response = await fetch(`${SERVER_URL}/quotes?type=get&id=czx`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const quotes = await response.json();
+                
+                // 处理返回的对象数组
+                const formattedQuotes = quotes.map(quote => {
+                    // 强兼旧格式
+                    if (typeof quote === 'string') {
+                        return { text: quote };
+                    }
+                    else if (quote && typeof quote === 'object') {
+                        return { 
+                            text: quote.message || quote.text || '[无内容]',
+                            id: quote.id,
+                            created_at: quote.created_at
+                        };
+                    }
+                    return { text: '[格式错误]' };
+                });
+                
+                return formattedQuotes;
+            } catch (error) {
+                console.error('获取语录失败:', error);
+                return initialQuotes;
+            }
+        }
+
+        // 上传语录到服务器
+        async function uploadQuoteToServer(quoteData) {
+            try {
+                const response = await fetch(`${SERVER_URL}/quotes`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        type: 'upload',
+                        id: 'czx',
+                        message: quoteData.text
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const result = await response.json();
+                
+                if (result.status === 'success') {
+                    return { success: true };
+                } else {
+                    throw new Error(result.message || result.error || '上传失败');
+                }
+            } catch (error) {
+                console.error('上传语录失败:', error);
+                throw error;
+            }
+        }
+
+        // 显示语录
+        function displayQuotes(quotes) {
+            const container = document.getElementById('quotesContainer');
+            const loadingIndicator = document.getElementById('loadingIndicator');
+            
+            if (loadingIndicator) {
+                loadingIndicator.style.display = 'none';
+            }
+            
+            container.innerHTML = '';
+            
+            if (quotes.length === 0) {
+                container.innerHTML = '<div class="loading">暂无典故，快来上传第一条吧！</div>';
+                return;
+            }
+            
+            // 创建语录卡片
+            quotes.forEach(quote => {
+                const quoteElement = document.createElement('div');
+                quoteElement.className = 'quote-card';
+                
+                let content = `
+                    <div class="quote-text">${quote.text}</div>
+                `;
+                
+                if (quote.created_at) {
+                    content += `<div class="quote-meta">${formatDate(quote.created_at)}</div>`;
+                }
+                
+                quoteElement.innerHTML = content;
+                container.appendChild(quoteElement);
+            });
+        }
+
+        // 格式化日期
+        function formatDate(dateString) {
+            try {
+                const date = new Date(dateString);
+                return date.toLocaleString('zh-CN');
+            } catch (e) {
+                return dateString;
+            }
+        }
+
+        // 显示消息
+        function showMessage(message, type) {
+            const messageElement = document.getElementById('message');
+            messageElement.textContent = message;
+            messageElement.className = `message ${type}`;
+            messageElement.style.display = 'block';
+            
+            // 3秒后自动隐藏消息
+            setTimeout(() => {
+                messageElement.style.display = 'none';
+            }, 3000);
+        }
+
+        // 初始化页面
+        document.addEventListener('DOMContentLoaded', async () => {
+            await checkServerStatus();
+            
+            // 加载语录
+            const quotes = await fetchQuotesFromServer();
+            displayQuotes(quotes);
+            
+            // 新语录提交
+            document.getElementById('quoteForm').addEventListener('submit', async function(e) {
+                e.preventDefault();
+                
+                const quoteText = document.getElementById('quoteText').value.trim();
+                const submitBtn = document.getElementById('submitBtn');
+                
+                if (!quoteText) {
+                    showMessage('请输入典故', 'error');
+                    return;
+                }
+                
+                const quoteData = {
+                    text: quoteText
+                };
+                
+                // 显示上传中状态
+                const originalText = submitBtn.textContent;
+                submitBtn.textContent = '上传中...';
+                submitBtn.disabled = true;
+                
+                try {
+                    // 上传语录
+                    await uploadQuoteToServer(quoteData);
+                    showMessage('典故上传成功！', 'success');
+                    document.getElementById('quoteForm').reset();
+                    
+                    // 重新加载语录列表
+                    const updatedQuotes = await fetchQuotesFromServer();
+                    displayQuotes(updatedQuotes);
+                } catch (error) {
+                    console.error('上传失败:', error);
+                    showMessage('上传失败: ' + error.message, 'error');
+                } finally {
+                    submitBtn.textContent = originalText;
+                    submitBtn.disabled = false;
+                }
+            });
+        });
+    </script>
+</body>
+</html>
